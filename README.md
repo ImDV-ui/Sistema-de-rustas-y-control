@@ -1,58 +1,99 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🌴 Digital Resort - Sistema de Navegación y Control de Accesos
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Este proyecto implementa la estructura de navegación y el control de accesos de un **Digital Resort** utilizando el enrutamiento y los **Middlewares de Laravel 12 / PHP 8.4**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📋 Requisitos del Proyecto Implementados
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 1. Base de Datos y Modelo de Usuario
+- **Migración `users`**: Se añadieron los campos:
+  - `is_admin` (booleano, por defecto `false`).
+  - `age` (entero, edad del usuario).
+- **Modelo `User`**: Atributos en `$fillable` y convertidos en `casts()` (`is_admin => 'boolean'`, `age => 'integer'`).
+- **Seeder (`UserSeeder`)**: Tres usuarios creados con contraseña `password`:
+  1. **Administrador mayor de edad**: `admin@resort.com` | Edad: 35 | `is_admin: true`
+  2. **Cliente adulto**: `adulto@resort.com` | Edad: 25 | `is_admin: false`
+  3. **Cliente menor de edad**: `menor@resort.com` | Edad: 16 | `is_admin: false`
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+### 2. Vistas Blade (Fase 1)
+- **Públicas**:
+  - `resources/views/home.blade.php`: Pantalla principal de bienvenida al resort con tarjetas informativas de cada zona.
+  - `resources/views/login.blade.php`: Formulario de inicio de sesión con guía de credenciales de prueba.
+  - `resources/views/register.blade.php`: Formulario de registro de cuentas (incluyendo campo de edad).
+- **Privadas (Protegidas)**:
+  - `resources/views/panel-usuario.blade.php`: Habitación del cliente con mensaje de bienvenida personalizado y ficha del huésped.
+  - `resources/views/casino.blade.php`: Sala de juegos exclusiva para mayores de edad (18+).
+  - `resources/views/panel-admin.blade.php`: Oficina de dirección exclusiva para administradores (`is_admin: true`).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 3. Middlewares / "Los Porteros" (Fase 2)
+1. **`CheckAuth` (`App\Http\Middleware\CheckAuth`)**:
+   - Verifica si el usuario ha iniciado sesión con `Auth::check()`.
+   - Si no está autenticado, lo redirige a `/login`.
+2. **`CheckAdmin` (`App\Http\Middleware\CheckAdmin`)**:
+   - Comprueba si el usuario autenticado tiene `is_admin === true`.
+   - Si un usuario estándar intenta ingresar, deniega el acceso con error HTTP `403 Forbidden`.
+3. **`CheckAge` (`App\Http\Middleware\CheckAge`)**:
+   - Comprueba si el usuario autenticado tiene `age >= 18`.
+   - Si un menor intenta acceder, lo redirige a su habitación (`/panel`) con el mensaje flash de sesión: `"Acceso denegado: Debes ser mayor de edad"`.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+Los middlewares fueron registrados con sus correspondientes alias en `bootstrap/app.php` (`CheckAuth`, `CheckAdmin`, `CheckAge`).
 
-## Agentic Development
+---
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 4. Configuración de Rutas en `routes/web.php` (Fase 3)
+| Ruta | Método | Acceso | Middlewares | Vista / Acción |
+|---|---|---|---|---|
+| `/` | GET | Libre | Ninguno | `home.blade.php` |
+| `/login` | GET / POST | Libre | Ninguno | Formulario / Autenticación |
+| `/register` | GET / POST | Libre | Ninguno | Formulario / Registro |
+| `/panel` | GET | Privado | `CheckAuth` | `panel-usuario.blade.php` |
+| `/casino` | GET | Privado | `CheckAuth`, `CheckAge` | `casino.blade.php` |
+| `/admin` | GET | Privado | `CheckAuth`, `CheckAdmin` | `panel-admin.blade.php` |
+| `/logout` | POST | Privado | Ninguno | Cierre de sesión y redirección |
+
+---
+
+## 🚀 Puesta en Marcha
+
+1. **Instalar dependencias:**
+   ```bash
+   composer install
+   ```
+2. **Ejecutar migraciones y seeders:**
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
+3. **Iniciar servidor local:**
+   ```bash
+   php artisan serve
+   ```
+   Abrir en el navegador: `http://localhost:8000`
+
+---
+
+## 🧪 Pruebas Automatizadas (Pest)
+
+Se incluye una suite completa de pruebas en `tests/Feature/AccessControlTest.php` que verifica todas las restricciones y casos de uso:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+php artisan test
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## 📤 Entrega en GitHub
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Para subir el proyecto a tu repositorio público de GitHub:
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+1. Crea un repositorio público en [GitHub](https://github.com/new) llamado por ejemplo `laravel-resort-middlewares`.
+2. Ejecuta en tu terminal:
+   ```bash
+   git remote add origin https://github.com/TU_USUARIO/TU_REPOSITORIO.git
+   git branch -M main
+   git push -u origin main
+   ```
